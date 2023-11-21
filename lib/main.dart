@@ -1,26 +1,24 @@
+import 'dart:developer';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final cameras = await availableCameras();
+  // Get a specific camera from the list of available cameras.
   final firstCamera = cameras.first;
-
-  runApp(MyApp(camera: firstCamera));
-}
-
-class MyApp extends StatelessWidget {
-  final CameraDescription camera;
-
-  const MyApp({Key? key, required this.camera}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    MaterialApp(
       theme: ThemeData.dark(),
-      home: CameraScreen(camera: camera),
-    );
-  }
+      home: CameraScreen(
+        // Pass the appropriate camera to the TakePictureScreen widget.
+        camera: firstCamera,
+      ),
+    ),
+  );
 }
 
 class CameraScreen extends StatefulWidget {
@@ -41,7 +39,8 @@ class _CameraScreenState extends State<CameraScreen> {
     super.initState();
     _controller = CameraController(
       widget.camera,
-      ResolutionPreset.medium,
+      // Define the resolution to use.
+      ResolutionPreset.high,
     );
 
     _initializeControllerFuture = _controller.initialize();
@@ -50,30 +49,75 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Camera App')),
+      appBar: AppBar(title: const Text('Camera App')),
       resizeToAvoidBottomInset: false, // Prevents bottom overflow
       body: FutureBuilder(
         future: _initializeControllerFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.done) {
-            return FractionallySizedBox(
-              widthFactor: 1.0,
-              heightFactor: 1.0,
-              child: CameraPreview(_controller),
+            return SizedBox(
+              width: MediaQuery.of(context).size.width,
+              height: MediaQuery.of(context).size.height,
+              child: Align(
+                  alignment: Alignment.center,
+                  child: CameraPreview(_controller)),
             );
           } else {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
+          }
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: const Icon(Icons.photo_camera),
+        onPressed: () async {
+          try {
+            // Ensure that the camera is initialized.
+            await _initializeControllerFuture;
+
+            // Attempt to take a picture and get the file `image`
+            // where it was saved.
+            final image = await _controller.takePicture();
+
+            if (!mounted) return;
+
+            // If the picture was taken, display it on a new screen.
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => DisplayPictureScreen(
+                  // Pass the automatically generated path to
+                  // the DisplayPictureScreen widget.
+                  imagePath: image.path,
+                ),
+              ),
+            );
+          } catch (e) {
+            // If an error occurs, log the error to the console.
+            log(e.toString());
           }
         },
       ),
     );
   }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 }
 
+class DisplayPictureScreen extends StatelessWidget {
+  final String imagePath;
 
+  const DisplayPictureScreen({super.key, required this.imagePath});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Display the Picture')),
+      // The image is stored as a file on the device. Use the `Image.file`
+      // constructor with the given path to display the image.
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: Image.file(File(imagePath))),
+        ],
+      ),
+    );
+  }
+}
