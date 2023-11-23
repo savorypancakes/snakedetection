@@ -1,123 +1,148 @@
-import 'dart:developer';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
+import 'package:flutter/services.dart';
+import 'package:google_ml_kit/google_ml_kit.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final cameras = await availableCameras();
-  // Get a specific camera from the list of available cameras.
-  final firstCamera = cameras.first;
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(
-    MaterialApp(
-      theme: ThemeData.dark(),
-      home: CameraScreen(
-        // Pass the appropriate camera to the TakePictureScreen widget.
-        camera: firstCamera,
+
+Future<String> getModelPath(String asset) async {
+  final path = '${(await getApplicationSupportDirectory()).path}/$asset';
+  await Directory(dirname(path)).create(recursive: true);
+  final file = File(path);
+  if (!await file.exists()) {
+    final byteData = await rootBundle.load(asset);
+    await file.writeAsBytes(byteData.buffer
+            .asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+  }
+  return file.path;
+}
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  // This widget is the root of your application.
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        // This is the theme of your application.
+        //
+        // Try running your application with "flutter run". You'll see the
+        // application has a blue toolbar. Then, without quitting the app, try
+        // changing the primarySwatch below to Colors.green and then invoke
+        // "hot reload" (press "r" in the console where you ran "flutter run",
+        // or simply save your changes to "hot reload" in a Flutter IDE).
+        // Notice that the counter didn't reset back to zero; the application
+        // is not restarted.
+        primarySwatch: Colors.blue,
       ),
-    ),
+      home: ImageLabelling(),
+    );
+  }
+}
+
+class ImageLabelling extends StatefulWidget {
+  const ImageLabelling({Key? key}) : super(key: key);
+
+  @override
+  State<ImageLabelling> createState() => _ImageLabellingState();
+}
+
+class _ImageLabellingState extends State<ImageLabelling> {
+  
+  late InputImage _inputImage;
+  File? _pickedImage;
+  final modelPath = getModelPath('assets/ml/best_float16.tflite');
+  static final options = LocalLabelerOptions(
+    confidenceThreshold: 0.8,
+    modelPath: 'assets/ml/best_float16.tflite',
   );
-}
+  final imageLabeler = ImageLabeler(options: options);
 
-class CameraScreen extends StatefulWidget {
-  final CameraDescription camera;
+  final ImagePicker _imagePicker = ImagePicker();
 
-  const CameraScreen({Key? key, required this.camera}) : super(key: key);
+  String text = "";
 
-  @override
-  _CameraScreenState createState() => _CameraScreenState();
-}
+  pickImageFromGallery() async {
+    XFile? image = await _imagePicker.pickImage(source: ImageSource.camera);
+    if (image == null) {
+      return;
+    }
 
-class _CameraScreenState extends State<CameraScreen> {
-  late CameraController _controller;
-  late Future<void> _initializeControllerFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = CameraController(
-      widget.camera,
-      // Define the resolution to use.
-      ResolutionPreset.high,
-    );
-
-    _initializeControllerFuture = _controller.initialize();
+    setState(() {
+      _pickedImage = File(image.path);
+    });
+    _inputImage = InputImage.fromFile(_pickedImage!);
+    identifyImage(_inputImage);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Camera App')),
-      resizeToAvoidBottomInset: false, // Prevents bottom overflow
-      body: FutureBuilder(
-        future: _initializeControllerFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done) {
-            return SizedBox(
-              width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.height,
-              child: Align(
-                  alignment: Alignment.center,
-                  child: CameraPreview(_controller)),
-            );
-          } else {
-            return const Center(child: CircularProgressIndicator());
-          }
-        },
+      appBar: AppBar(
+        title: Text("Image Labelling"),
       ),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.photo_camera),
-        onPressed: () async {
-          try {
-            // Ensure that the camera is initialized.
-            await _initializeControllerFuture;
-
-            // Attempt to take a picture and get the file `image`
-            // where it was saved.
-            final image = await _controller.takePicture();
-
-            if (!mounted) return;
-
-            // If the picture was taken, display it on a new screen.
-            await Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => DisplayPictureScreen(
-                  // Pass the automatically generated path to
-                  // the DisplayPictureScreen widget.
-                  imagePath: image.path,
-                ),
-              ),
-            );
-          } catch (e) {
-            // If an error occurs, log the error to the console.
-            log(e.toString());
-          }
-        },
+      body: Container(
+        height: double.infinity,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          if (_pickedImage != null)
+            Image.file(
+              _pickedImage!,
+              height: 300,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            )
+          else
+            Container(
+              height: 300,
+              color: Colors.black,
+              width: double.infinity,
+            ),
+          Expanded(
+            child: Container(),
+          ),
+          Text(text, style: TextStyle(fontSize: 20)),
+          Expanded(
+            child: Container(),
+          ),
+          Container(
+            padding: EdgeInsets.all(16.0),
+            width: double.infinity,
+            child: ElevatedButton(
+              child: Text("Pick Image"),
+              onPressed: () {
+                pickImageFromGallery();
+              },
+            ),
+          )
+        ]),
       ),
     );
   }
-}
 
-class DisplayPictureScreen extends StatelessWidget {
-  final String imagePath;
+  void identifyImage(InputImage inputImage) async {
+    final List<ImageLabel> image = await imageLabeler.processImage(inputImage);
 
-  const DisplayPictureScreen({super.key, required this.imagePath});
+    if (image.isEmpty) {
+      setState(() {
+        text = "Cannot identify the image";
+      });
+      return;
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Display the Picture')),
-      // The image is stored as a file on the device. Use the `Image.file`
-      // constructor with the given path to display the image.
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(child: Image.file(File(imagePath))),
-        ],
-      ),
-    );
+    for (ImageLabel img in image) {
+      setState(() {
+        text = "Label : ${img.label}\nConfidence : ${img.confidence}";
+      });
+    }
+    imageLabeler.close();
   }
 }

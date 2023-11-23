@@ -1,6 +1,6 @@
 {
-    "name": "fridgetotable",
-    "short_name": "fridgetotable",
+    "name": "flutter_image_labelling",
+    "short_name": "flutter_image_labelling",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "722229870985",
+    "project_id": "snakedetection-3fb15",
+    "storage_bucket": "snakedetection-3fb15.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:722229870985:android:728bc8a4be35e34181a158",
+        "android_client_info": {
+          "package_name": "com.example.image_labelling"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMRUg77_KPv4RipNrd9W6in-vpjN6u0y0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
