@@ -1,5 +1,8 @@
 import 'dart:developer';
 import 'dart:io';
+import 'dart:convert';
+import 'package:fridgetotable/labelled_image.dart';
+import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -100,24 +103,46 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 }
 
+
+
 class DisplayPictureScreen extends StatelessWidget {
+
   final String imagePath;
 
   const DisplayPictureScreen({super.key, required this.imagePath});
 
+
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Display the Picture')),
-      // The image is stored as a file on the device. Use the `Image.file`
-      // constructor with the given path to display the image.
+      appBar: AppBar(title: const Text('Display the Picture')), 
+
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          
+          // Show original image
           Expanded(child: Image.file(File(imagePath))),
+          
+          // Get labeled image
+          FutureBuilder(
+            future: LabelImage().getLabeledImage(imagePath),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                final response = jsonDecode(snapshot.data!);
+                // Display predictions
+                return Expanded(child: Text(response.toString()));
+              } else {
+                return const CircularProgressIndicator();
+              }
+            },
+          )
         ],
       ),
     );
+
   }
+
 }
