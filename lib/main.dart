@@ -118,7 +118,7 @@ class DisplayPictureScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Show original image
-          Expanded(child: Image.file(File(imagePath))),
+          // Expanded(child: Image.file(File(imagePath))),
 
           // Get labeled image
           FutureBuilder(
@@ -127,11 +127,18 @@ class DisplayPictureScreen extends StatelessWidget {
               if (snapshot.hasData) {
                 final response = jsonDecode(snapshot.data!);
                 // Display predictions
-                return Column(
-                  children: [
-                    Text(response.toString()),
-                    // BoundingBox(results, height, width, screenHeight, screenWidth);
-                  ]);
+                log(response['predictedImage']);
+                
+                return Column(children: [
+                  Image.memory(
+                    base64Decode(response['predictedImage']),
+                    fit: BoxFit.fill,
+                  ),
+
+                  Text(response['predictions'].toString()),
+
+                  // BoundingBox(results, height, width, screenHeight, screenWidth);
+                ]);
               } else {
                 return const CircularProgressIndicator();
               }

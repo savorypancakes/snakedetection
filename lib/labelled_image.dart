@@ -10,14 +10,19 @@ class LabelImage {
 
     // Load image as base64 string
     List<int> imageBytes = await File(imagePath).readAsBytes();  
+    
     String base64Image = base64Encode(imageBytes);
 
     // Call API 
-    String url = "https://detect.roboflow.com/snakedetection-krhf0/9?api_key=$apiKey";
+    String url = "https://khush2003-snake-deployment-docker.hf.space/predict";
     var response = await http.post(
       Uri.parse(url),
-      headers: {"Content-Type": "application/x-www-form-urlencoded"},
-      body: base64Image,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "imageBase64": base64Image,
+        "confThreshold": 0.5,
+        "iouThreshold": 0.6
+      })
     );
 
 
