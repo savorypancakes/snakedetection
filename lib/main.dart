@@ -1,9 +1,6 @@
 import 'dart:developer';
-import 'dart:io';
 import 'dart:convert';
 import 'package:fridgetotable/labelled_image.dart';
-import 'package:fridgetotable/bounding_box.dart';
-import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -90,7 +87,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 builder: (context) => DisplayPictureScreen(
                   // Pass the automatically generated path to
                   // the DisplayPictureScreen widget.
-                  imagePath: image.path,
+                  image: image,
                 ),
               ),
             );
@@ -105,9 +102,9 @@ class _CameraScreenState extends State<CameraScreen> {
 }
 
 class DisplayPictureScreen extends StatelessWidget {
-  final String imagePath;
+  final XFile image;
 
-  const DisplayPictureScreen({super.key, required this.imagePath});
+  const DisplayPictureScreen({super.key, required this.image});
 
   @override
   Widget build(BuildContext context) {
@@ -122,22 +119,16 @@ class DisplayPictureScreen extends StatelessWidget {
 
           // Get labeled image
           FutureBuilder(
-            future: LabelImage().getLabeledImage(imagePath),
+            future: LabelImage().getLabeledImage(image),
             builder: (context, snapshot) {
               if (snapshot.hasData) {
                 final response = jsonDecode(snapshot.data!);
-                // Display predictions
-                log(response['predictedImage']);
-                
                 return Column(children: [
                   Image.memory(
                     base64Decode(response['predictedImage']),
                     fit: BoxFit.fill,
                   ),
-
                   Text(response['predictions'].toString()),
-
-                  // BoundingBox(results, height, width, screenHeight, screenWidth);
                 ]);
               } else {
                 return const CircularProgressIndicator();

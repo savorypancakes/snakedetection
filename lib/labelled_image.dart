@@ -1,17 +1,20 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:camera/camera.dart';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 
 class LabelImage {
 
   final String apiKey = '3hl0ORnAaIR1Bk0yDcO2';
   
-  Future<String> getLabeledImage(String imagePath) async {
+  Future<String> getLabeledImage(XFile imagePath) async {
 
     // Load image as base64 string
-    List<int> imageBytes = await File(imagePath).readAsBytes();  
-    
-    String base64Image = base64Encode(imageBytes);
+    final img.Image capturedImage = img.decodeImage(await imagePath.readAsBytes())!;  
+    // Rotate the image based on the EXIF metadata
+    final img.Image orientedImage = img.bakeOrientation(capturedImage);
+    // Convert the image to base64
+    final String base64Image = base64Encode(img.encodeJpg(orientedImage));
 
     // Call API 
     String url = "https://khush2003-snake-deployment-docker.hf.space/predict";
