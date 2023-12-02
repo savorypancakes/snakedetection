@@ -114,33 +114,39 @@ class DisplayPictureScreen extends StatefulWidget {
 
 class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
   List<WikipediaSearch> _data = [];
+  var response = {};
+
+  @override
+  void initState() {
+    initVar();
+    
+            
+    super.initState();
+  }
+
+  void initVar() async {
+    final results = await LabelImage().getLabeledImage(widget.image);
+    final newResponse = jsonDecode(results);
+    List<String> wikiclass = [];
+    for (var pred in newResponse['predictions']) {
+        wikiclass.add(pred['class_name']);
+    }
+    Future.wait(wikiclass.map((species) => getLoadingData(species)))
+    .then((List<dynamic> results) {
+              setState(() {
+                response = newResponse;
+                _data = results.cast<WikipediaSearch>();
+              });
+            });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Display the Picture')),
-      body: FutureBuilder(
-        future: LabelImage().getLabeledImage(widget.image),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            List<String> wikiclass = [];
-            // List<WikipediaSearch> data = [];
-
-            final response = jsonDecode(snapshot.data!);
-            for (var pred in response['predictions']) {
-              wikiclass.add(pred['class_name']);
-            }
-
-            // Use Future.wait to wait for all async operations to complete
-            Future.wait(wikiclass.map((species) => getLoadingData(species)))
-                .then((List<dynamic> results) {
-              _data = results.cast<WikipediaSearch>();
-
-              setState(
-                  () {}); // Make sure to call setState after modifying the state
-            });
-
-            return SingleChildScrollView(
+      body:
+          response.isEmpty ? const Center(child: CircularProgressIndicator()) :
+             SingleChildScrollView(
               child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -224,14 +230,8 @@ class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
                       ],
                     ),
                   ]),
-            );
-          } else {
-            return const CircularProgressIndicator();
-          }
-        },
-      ),
-    );
-  }
+            ));
+        }
 
   Future getLoadingData(species) async {
     Wikipedia instance = Wikipedia();
