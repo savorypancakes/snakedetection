@@ -4,6 +4,7 @@ import 'package:fridgetotable/labelled_image.dart';
 
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:wikipedia/wikipedia.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,6 +12,7 @@ void main() async {
   // Get a specific camera from the list of available cameras.
   final firstCamera = cameras.first;
   WidgetsFlutterBinding.ensureInitialized();
+
   runApp(
     MaterialApp(
       theme: ThemeData.dark(),
@@ -101,42 +103,139 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 }
 
-class DisplayPictureScreen extends StatelessWidget {
+class DisplayPictureScreen extends StatefulWidget {
   final XFile image;
 
   const DisplayPictureScreen({super.key, required this.image});
 
   @override
+  State<DisplayPictureScreen> createState() => _DisplayPictureScreenState();
+}
+
+class _DisplayPictureScreenState extends State<DisplayPictureScreen> {
+  List<WikipediaSearch> _data = [];
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Display the Picture')),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Show original image
-          // Expanded(child: Image.file(File(imagePath))),
+      body: FutureBuilder(
+        future: LabelImage().getLabeledImage(widget.image),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            List<String> wikiclass = [];
+            // List<WikipediaSearch> data = [];
 
-          // Get labeled image
-          FutureBuilder(
-            future: LabelImage().getLabeledImage(image),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                final response = jsonDecode(snapshot.data!);
-                return Column(children: [
-                  Image.memory(
-                    base64Decode(response['predictedImage']),
-                    fit: BoxFit.fill,
-                  ),
-                  Text(response['predictions'].toString()),
-                ]);
-              } else {
-                return const CircularProgressIndicator();
-              }
-            },
-          )
-        ],
+            final response = jsonDecode(snapshot.data!);
+            for (var pred in response['predictions']) {
+              wikiclass.add(pred['class_name']);
+            }
+
+            // Use Future.wait to wait for all async operations to complete
+            Future.wait(wikiclass.map((species) => getLoadingData(species)))
+                .then((List<dynamic> results) {
+              _data = results.cast<WikipediaSearch>();
+
+              setState(
+                  () {}); // Make sure to call setState after modifying the state
+            });
+
+            return SingleChildScrollView(
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.memory(
+                      base64Decode(response['predictedImage']),
+                      fit: BoxFit.fill,
+                    ),
+                    Stack(
+                      children: [
+                        ListView.builder(
+                          scrollDirection: Axis.vertical,
+                          shrinkWrap: true,
+                          itemCount: _data.length,
+                          padding: const EdgeInsets.all(8),
+                          itemBuilder: (context, index) => InkWell(
+                            onTap: () async {
+                              Wikipedia instance = Wikipedia();
+                              var pageData =
+                                  await instance.searchSummaryWithPageId(
+                                      pageId: _data[index].pageid!);
+                              showGeneralDialog(
+                                context: context,
+                                pageBuilder:
+                                    (context, animation, secondaryAnimation) =>
+                                        Scaffold(
+                                  appBar: AppBar(
+                                    title: Text(_data[index].title!,
+                                        style: const TextStyle(
+                                            color: Colors.black)),
+                                    backgroundColor: Colors.white,
+                                    iconTheme: const IconThemeData(
+                                        color: Colors.black),
+                                  ),
+                                  body: ListView(
+                                    padding: const EdgeInsets.all(10),
+                                    children: [
+                                      Text(
+                                        pageData!.title!,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 20),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        pageData.description!,
+                                        style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontStyle: FontStyle.italic),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(pageData.extract!)
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Card(
+                              elevation: 5,
+                              margin: const EdgeInsets.all(8),
+                              child: Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _data[index].title!,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(_data[index].snippet!),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ]),
+            );
+          } else {
+            return const CircularProgressIndicator();
+          }
+        },
       ),
     );
+  }
+
+  Future getLoadingData(species) async {
+    Wikipedia instance = Wikipedia();
+    var result = await instance.searchQuery(searchQuery: species, limit: 1);
+    return result!.query!.search!.first;
   }
 }
