@@ -43,7 +43,7 @@ class _CameraScreenState extends State<CameraScreen> {
     _controller = CameraController(
       widget.camera,
       // Define the resolution to use.
-      ResolutionPreset.high,
+      ResolutionPreset.medium,
     );
 
     _initializeControllerFuture = _controller.initialize();
